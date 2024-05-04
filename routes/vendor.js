@@ -195,47 +195,4 @@ router.post("/GetUserList", async (req, res) => {
 
 
 
-  router.post('/Holdercreationlogssave', async (req, res) => {
-    
-    const { userInfo, license_holderid,name} = req.body;
-  
-    console.log(userInfo);
-
-  
-  const { user_id, user_name } = userInfo;
-  const date_time = new Date();
-  
-    try {
-     
-      const pool = await sql.connect(config);
-  
-     
-       
-        const query = `
-            INSERT INTO tb_holderlogs (user_id, user_name,license_holderid, name,date_time)
-            VALUES (@user_id, @user_name, @license_holderid,@name GETDATE())
-        `;
-
-        await pool.request()
-            .input('user_id', sql.Int, user_id)
-            .input('user_name', sql.VarChar, user_name)
-            .input('license_holderid', sql.Int, license_holderid)
-            .input('name', sql.VarChar, name)
-            .input('date_time', sql.DateTime,date_time)
-           
-            .query(query);
-    
-  
-     
-      res.json({ success: true, message: 'Holder Creation logs inserted.' });
-    } catch (error) {
-      
-      console.error('Error:', error);
-      res.status(500).json({ success: false, message: 'Internal Server Error' });
-    } finally {
-     
-      await sql.close();
-    }
-  });
-
   module.exports = router;

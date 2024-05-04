@@ -11,8 +11,8 @@ router.post("/AddUser", async (req, res) => {
         var pool = await sql.connect(config);
         console.log("Connected to SQL Server");
   
-        var { name, email, phone, username, password } = req.body;
-        console.log(name, email, phone, username, password);
+        var { name, email, phone, user_name, password } = req.body;
+        console.log(name, email, phone, user_name, password);
   
         const checkEmail = `SELECT COUNT(license_holderid) as count FROM tb_licenseholder WHERE email = @email `;
         const checkPhone = `SELECT COUNT(license_holderid) as count FROM tb_licenseholder WHERE phone = @phone`;
@@ -51,18 +51,19 @@ router.post("/AddUser", async (req, res) => {
         
   
         // Constructing the SQL query for INSERT with today's date
-        var query = `INSERT INTO tb_licenseholder (name, email, phone, user_name, password) VALUES (@name, @email, @phone, @username, @password)`;
+        var query = `INSERT INTO tb_licenseholder (name, email, phone, user_name, password) VALUES (@name, @email, @phone, @user_name, @password)`;
   
         var result = await pool.request()
             .input('name', sql.VarChar, name)
             .input('email', sql.VarChar, email)
             .input('phone', sql.VarChar, phone)
-            .input('username', sql.VarChar, username)
+            .input('user_name', sql.VarChar, user_name)
             .input('password', sql.VarChar, password)
             .query(query);
   
         console.log("Query result:", result);
-  
+        
+        
         var response = {
             message: "User added successfully",
             Valid: true
@@ -93,6 +94,102 @@ router.post("/AddUser", async (req, res) => {
     }
   
   });
+
+
+  router.post('/Holdercreationlogssave', async (req, res) => {
+    
+    const { userInfo, license_holderid,name} = req.body;
+  
+    console.log(userInfo);
+
+  
+  const { user_id, user_name } = userInfo;
+  const date_time = new Date();
+  
+    try {
+     
+      const pool = await sql.connect(config);
+  
+     
+       
+        const query = `
+            INSERT INTO tb_holderlogs (user_id, user_name,license_holderid, name,date_time)
+            VALUES (@user_id, @user_name, @license_holderid,@name ,GETDATE())
+        `;
+
+        await pool.request()
+            .input('user_id', sql.Int, user_id)
+            .input('user_name', sql.VarChar, user_name)
+            .input('license_holderid', sql.Int, license_holderid)
+            .input('name', sql.VarChar, name)
+            .input('date_time', sql.DateTime,date_time)
+           
+            .query(query);
+    
+  
+     
+      res.json({ success: true, message: 'Holder Creation logs inserted.' });
+    } catch (error) {
+      
+      console.error('Error:', error);
+      res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+     
+      await sql.close();
+    }
+  });
+
+
+  router.post("/addvendorlogs", async (req, res) => {
+    try {
+      var pool = await sql.connect(config); // Connect to the database
+      console.log(req.body);
+      console.log("Connected to SQL Server");
+  
+      
+      var { currentPage, perPage } = req.body;
+  
+     
+      const totalCountQuery =`SELECT COUNT(*) AS TotalCount FROM tb_holderlogs`;
+      console.log("Total Count Query:", totalCountQuery);
+      const resultTotalCount = await pool.request().query(totalCountQuery);
+      const totalCount = resultTotalCount.recordset[0].TotalCount;
+      console.log("Total Count:", totalCount);
+  
+      const query = `SELECT *
+      FROM (
+          SELECT *, ROW_NUMBER() OVER (ORDER BY user_id) AS RowNum
+          FROM tb_holderlogs
+      ) AS UserWithRowNum
+      WHERE RowNum BETWEEN ${(currentPage - 1) * perPage + 1} AND ${currentPage * perPage}
+      ORDER BY user_id;
+      `;
+  
+     
+  
+      const result = await pool.request().query(query);
+      const resultSet = result.recordset;
+      console.log("Result Set:", resultSet);
+  
+      const response = {
+        message: "Holder Logs list fetched successfully",
+        Valid: true,
+        TotalCount: totalCount,
+        ResultSet: resultSet
+      };
+  
+      res.status(200).json(response);
+    } catch (err) {
+      console.error("Error:", err);
+      const response = {
+        message: " request list not fetched",
+        Valid: false,
+      };
+      res.status(500).json(response);
+    }
+  });
+  
+
 
 
 
