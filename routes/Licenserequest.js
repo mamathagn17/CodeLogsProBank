@@ -575,6 +575,35 @@ router.post("/licenserequestloginlogs", async (req, res) => {
       res.status(500).json(response);
     }
   });
+
+
+  router.post("/UpdateField", async (req, res) => {
+    try {
+        const { requestId, fieldName, updatedValue } = req.body;
+
+        let query;
+        switch (fieldName) {
+      
+        
+            case 'remarks':
+                query = `UPDATE tb_license_requests SET remarks = @updatedValue WHERE recid = @recid`;
+                break;
+            default:
+                return res.status(400).json({ message: "Invalid field name" });
+        }
+
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .input('recid', sql.Int, requestId)
+            .input('updatedValue', sql.VarChar, updatedValue)
+            .query(query);
+
+        res.status(200).json({ Success: true });
+    } catch (err) {
+        console.error("Error:", err);
+        res.status(500).json({ message: "Error updating field" });
+    }
+});
   
 
 module.exports = router;
