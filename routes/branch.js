@@ -12,7 +12,7 @@ router.get('/fetchclient', async (req, res) => {
     res.status(200).json({ clients: result.recordset });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ message: 'Error occurred while fetching products.' });
+    res.status(500).json({ message: 'Error occurred while fetching Clients.' });
   }
 });
 

@@ -156,11 +156,11 @@ router.post("/loginlogs", async (req, res) => {
 
     const query = `SELECT *
     FROM (
-        SELECT *, ROW_NUMBER() OVER (ORDER BY user_id) AS RowNum
+        SELECT *, ROW_NUMBER() OVER (ORDER BY login_datetime DESC) AS RowNum
         FROM tb_loginlogs
     ) AS UserWithRowNum
     WHERE RowNum BETWEEN ${(currentPage - 1) * perPage + 1} AND ${currentPage * perPage}
-    ORDER BY user_id;
+    ORDER BY login_datetime DESC;
     `;
 
     console.log("Query:", query);
@@ -322,6 +322,8 @@ router.get('/downloadLoginLogs', async (req, res) => {
     await sql.close();
   }
 });
+
+
 
 
 module.exports = router;

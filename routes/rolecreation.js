@@ -14,22 +14,22 @@ router.post("/addrole", async (req, res) => {
         var {role_name } = req.body;
         console.log(role_name);
   
-        // const checkname = `SELECT COUNT(role_id) as count FROM tb_clientcategorymaster WHERE category_name= @category_name `;
-        // const checknameResult = await pool.request()
-        //   .input('category_name', sql.VarChar, category_name)
-        //   .query(checkname);
-     
-  
-    
-        // const existingnameCount = checknameResult.recordset[0].count;
-        //   if(existingnameCount>0)
-        //   {
-        //   var response = {
-        //     message: "User with the provided Category Name already exists",
-        //     Valid: false
-        //   };
-        //   return res.status(200).json(response);
-        // }
+        const checkrole = `SELECT COUNT(role_id) as count FROM tb_roles WHERE role_name = @role_name `;
+      const checkroleResult = await pool
+          .request()
+          .input("role_name", sql.VarChar, role_name)
+          .query(checkrole);
+
+      const existingroleCount = checkroleResult.recordset[0].count;
+
+      if (existingroleCount > 0) {
+          var response = {
+              message: "Role with the provided Role Name already exists",
+              Valid: false,
+          };
+          return res.status(200).json(response);
+      }
+
     
         var query = `INSERT INTO tb_roles (role_name) VALUES (@role_name)`;
   
@@ -70,7 +70,52 @@ router.post("/addrole", async (req, res) => {
     }
   
   });
-
+  router.post("/fetchRoleList", async (req, res) => {
+    try {
+      var pool = await sql.connect(config); 
+      console.log(req.body);
+      console.log("Connected to SQL Server");
+  
+     
+      var {role_id,role_name } = req.body;
+  
+     
+      let SQLWhereClause = "";
+      var params = {};
+  
+     
+      var query = `SELECT * FROM tb_roles ${SQLWhereClause}`;
+  
+      // Execute the query with input parameters
+      var result = await pool
+        .request()
+        .input('role_id', sql.VarChar, params.role_id)
+        .input('role_name', sql.VarChar, params.role_name)
+        .query(query);
+  
+      
+      console.log("Query result:", result.recordset);
+  
+      
+      var response = {
+        message: "Role list fetched successfully",
+        Valid: true,
+        ResultSet: result.recordset
+      };
+  
+      
+      await pool.close();
+  
+      res.status(200).json([response]);
+    } catch (err) {
+      console.error("Error:", err);
+      var response = {
+        message: "Role list not fetched",
+        Valid: false,
+      };
+      res.status(500).json([response]); 
+    }
+  });
 
 
 module.exports = router;

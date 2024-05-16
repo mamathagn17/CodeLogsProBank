@@ -17,7 +17,7 @@ const roleRoute=require("./routes/rolecreation");
 const monthlyRoute=require("./routes/monthlyreconciliation");
 const adduserRoute=require("./routes/adduser")
 const annualRoute=require("./routes/annualreconciliation");
-
+const permissionRoute=require("./routes/permission");
 
 const cors = require("cors");
 
@@ -65,6 +65,7 @@ app.use("/api/licenserenewal",licenserenewalRoute);
 app.use("/api/monthlyreconciliation",monthlyRoute);
 app.use("/api/annualreconciliation",annualRoute);
 app.use("/api/adduser",adduserRoute);
+app.use("/api/permission",permissionRoute);
 
 const PORT = process.env.PORT ||3000;
 

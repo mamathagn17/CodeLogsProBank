@@ -69,6 +69,30 @@ router.post("/MonthlyList", async (req, res) => {
     }
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 router.post("/GetPendingList", async (req, res) => {
     try {
         const { currentPage, perPage, month, branch_id, client_id,year } = req.body;
