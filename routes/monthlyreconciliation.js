@@ -199,13 +199,22 @@ router.post("/UpdateField", async (req, res) => {
 });
 router.post("/MarkAsPending", async (req, res) => {
     try {
-        const { clientIds } = req.body;
+        const { requests } = req.body; // Expecting an array of { client_id, month, year }
 
-        // Construct a comma-separated string of client IDs
-        const clientIdsString = clientIds.join(',');
+        if (!requests || requests.length === 0) {
+            return res.status(400).json({ message: "No requests provided" });
+        }
 
-        // Update the pending_status of the selected records to 1 (pending)
-        const query = `UPDATE tb_monthlyreconciliation SET pending_status = 1 WHERE client_id IN (${clientIdsString})`;
+        // Construct WHERE clause with multiple AND conditions combined with OR
+        const conditions = requests.map(({ client_id, month, year }) => 
+            `(client_id = '${client_id}' AND month = '${month}' AND year = '${year}')`
+        ).join(' OR ');
+
+        const query = `
+            UPDATE tb_monthlyreconciliation 
+            SET pending_status = 1 
+            WHERE ${conditions}
+        `;
 
         const pool = await sql.connect(config);
         await pool.request().query(query);
@@ -216,15 +225,19 @@ router.post("/MarkAsPending", async (req, res) => {
         res.status(500).json({ message: "Error marking records as pending" });
     }
 });
+
 router.post("/MarkAsCompleted", async (req, res) => {
     try {
-        const { clientIds } = req.body;
+        const { requests } = req.body; // Expecting an array of { client_id, month, year }
 
-       
-        const clientIdsString = clientIds.join(',');
+        if (!requests || requests.length === 0) {
+            return res.status(400).json({ message: "No requests provided" });
+        }
 
-        // Update the pending_status of the selected records to 1 (pending)
-        const query = `UPDATE tb_monthlyreconciliation SET pending_status = 2 WHERE client_id IN (${clientIdsString})`;
+        // Construct WHERE clause with multiple AND conditions combined with OR
+        const conditions = requests.map(({ client_id, month, year }) => 
+            `(client_id = '${client_id}' AND month = '${month}' AND year = '${year}')` ).join(' OR ');
+        const query = `UPDATE tb_monthlyreconciliation SET pending_status = 2 WHERE  ${conditions}`;
 
         const pool = await sql.connect(config);
         await pool.request().query(query);

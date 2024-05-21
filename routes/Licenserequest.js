@@ -606,4 +606,173 @@ router.post("/licenserequestloginlogs", async (req, res) => {
 });
   
 
+const crypto = require('crypto');
+const fs = require('fs');
+//const { parseISO, addMonths, differenceInMonths, getMonth, getYear } = require('date-fns');
+router.post("/GenerateFile", async (req, res) => {
+    try {
+        const RecID = req.body.recIds[0];
+
+                const pool = await sql.connect(config);
+                const result = await pool.request()
+                .input('recid', sql.Int, RecID)
+                .query(`select clientname, branchname, license_typeid, uuid, convert(varchar, activationdate, 105) as activationdate,
+                convert(varchar, expirydate, 105) as expirydate,CONVERT(varchar,activationdate,20) as active,CONVERT(varchar,expirydate,20) as expiry, entrydate, userid, license_holderid, invoicenumber, utr_number,
+                client_id, branch_id, remarks, product_id, renewal_status, additionalModule from tb_license_requests where RecID = @recid`);
+        
+                const record = result.recordset[0];
+
+        if (record) {
+            clientname = record.clientname;
+            branchname = record.branchname;
+            license_typeid = record.license_typeid;
+            uuid = record.uuid;
+            activationdate = record.activationdate;
+            TerminalDate = record.expirydate;
+            entrydate = record.entrydate;
+            userid = record.userid;
+            license_holderid = record.license_holderid;
+            invoicenumber = record.invoicenumber;
+            utr_number = record.utr_number;
+            client_id = record.client_id;
+            branch_id = record.branch_id;
+            remarks = record.remarks;
+            product_id = record.product_id;
+            renewal_status = record.renewal_status;
+            additionalModule = record.additionalModule;
+            expiry=record.expiry;
+            active=record.active;
+
+        //    const param2Value='';
+        //    const csResult = await pool.request()
+      //  .input('requestID', sql.Int, RecID)
+       // .input('SqlString', sql.VarChar, param2Value)
+      //  .execute('DynamicJsonForTreeMenu_LICENSE');
+
+           // const s = csResult.output;
+
+            const request = pool.request()
+            .input('requestID', sql.Int, RecID)
+            .output('SqlString', sql.VarChar(sql.MAX)); // Adjust the data type if necessary
+
+        // Execute the stored procedure
+        const result = await request.execute('DynamicJsonForTreeMenu_LICENSE');
+
+        // Get the output parameter value
+        const s = result.output.SqlString;
+    
+            const jsonObject = {
+                clientname: clientname,
+                BranchName: branchname,
+                ActivationDate: activationdate,
+                MACID: uuid,
+                LicenceType: license_typeid,
+                TerminalDate:TerminalDate,
+                RecID: RecID,
+                GracePeriod: 45,
+                WarningMessage: "Your License has expired, Request you to renew the same to avoid deactivation.",
+                TerminationMessage: "Your software will be discontinued soon. Kindly request for a renewal to avoid termination.",
+                TerminationPeriod: 15,
+                userid,
+                license_holderid:license_holderid,
+                invoicenumber,
+                utr_number,
+                client_id,
+                branch_id,
+                remarks,
+                product_id,
+                entrydate,
+                renewal_status,
+                additionalModule
+            };
+    
+            // Constructing Menu JSONArray
+            jsonObject.Menu = JSON.parse(s);
+
+            const IV = "20f92fa82d3305b2";
+            const AES_Key = "e36581506fde7939670430d04d8d7242";
+            const encrypted_file_Content = encryptAES256AndBase64(AES_Key, IV, '['+JSON.stringify(jsonObject)+']');
+            const branch_code = clientname;
+            const client_code = branchname;
+            const FileName = `${RecID}_${branch_code}${client_code}.txt`;
+            const filePath = `D:\\Code\\${FileName}`;
+            fs.writeFileSync(filePath, encrypted_file_Content);
+
+            const currentTime = new Date();
+            const time = currentTime.getTime();
+
+            // INSERTION INTO MONTHLY RECONCILIATION
+            if (license_typeid === 2) {
+                const startDate = parseISO(active);
+                const endDate = parseISO(expiry);
+                const totalMonths = differenceInMonths(endDate, startDate)+1;
+
+                for (let i = 0; i < totalMonths; i++) {
+                    const nextMonthDate = addMonths(startDate, i);
+            const month = getMonth(nextMonthDate) + 1; // getMonth returns 0-based month, so add 1
+            const year = getYear(nextMonthDate);
+                   // const nextMonthDate = startDate.plusMonths(i);
+                    //const month = nextMonthDate.monthValue();
+                   // const year = nextMonthDate.year();
+
+                    const s1 = `select rec_id from TB_monthlyReconciliation where client_id = ${client_id} and branch_id = ${branch_id} and year = ${year} and month = ${month} and License_id= ${RecID}`;
+                    const rs1 = await pool.request().query(s1);
+                    const IsEmpty = rs1.recordset.length === 0;
+
+                    if (IsEmpty) {
+                        const Insert_into_Monthly = `INSERT INTO tb_monthlyreconciliation(client_id, branch_id, license_id, year, month) 
+                            VALUES (${client_id}, ${branch_id}, ${RecID}, ${year}, ${month})`;
+                        await pool.request().query(Insert_into_Monthly);
+                    }
+                }
+
+                const cumulative_Year = `${getYear(startDate)}-${getYear(endDate)}`;
+                const s1 = `select recid from tb_annualreconciliation where client_id = ${client_id} and branch_id = ${branch_id} and License_id=${RecID}`;
+                const rs1 = await pool.request().query(s1);
+                const IsEmpty = rs1.recordset.length === 0;
+
+                if (IsEmpty) {
+                    const Insert_into_Monthly = `INSERT INTO tb_annualreconciliation(client_id, branch_id, license_id, year) 
+                        VALUES (${client_id}, ${branch_id}, ${RecID}, '${cumulative_Year}')`;
+                    await pool.request().query(Insert_into_Monthly);
+                } else {
+                    const sqlVARRLupdate = `UPDATE tb_annualreconciliation SET year = '${cumulative_Year}' WHERE client_id = ${client_id} and branch_id = ${branch_id}`;
+                    await pool.request().query(sqlVARRLupdate);
+                }
+            }
+
+            const sqlVARRLupdate = `UPDATE tb_license_requests SET filename = @FileName, filegenerateddate = @time, status = 1 WHERE RecId = @recid`;
+            await pool.request()
+                .input('FileName', sql.NVarChar, FileName)
+                .input('time', sql.DateTime, new Date(time))
+                .input('recid', sql.Int, RecID)
+                .query(sqlVARRLupdate);
+
+            await pool.close();
+            
+        } else {
+           
+        }
+                res.status(200).json({ Success: true });
+    } catch (err) {
+        console.error("Error:", err);
+        res.status(500).json({ message: "Error updating field" });
+    }
+});
+
+function encryptAES256AndBase64(encryptionKey, iv, jsonBody) {
+    try {
+        // Create a Cipher instance using AES-256-CBC with PKCS5 padding
+        const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(encryptionKey, 'utf-8'), Buffer.from(iv, 'utf-8'));
+
+        // Encrypt the jsonBody
+        let encrypted = cipher.update(jsonBody, 'utf-8', 'base64');
+        encrypted += cipher.final('base64');
+
+        return encrypted;
+    } catch (err) {
+        throw new Error(err.message);
+    }
+}
+
 module.exports = router;

@@ -171,13 +171,17 @@ router.post("/UpdateField", async (req, res) => {
 
 router.post("/MarkAsPending", async (req, res) => {
     try {
-        const { clientIds } = req.body;
+        const { requests } = req.body; // Expecting an array of { client_id,year }
 
-       
-        const clientIdsString = clientIds.join(',');
+        if (!requests || requests.length === 0) {
+            return res.status(400).json({ message: "No requests provided" });
+        }
 
-        // Update the pending_status of the selected records to 1 (pending)
-        const query = `UPDATE tb_annualreconciliation SET pending_status = 1 WHERE client_id IN (${clientIdsString})`;
+        // Construct WHERE clause with multiple AND conditions combined with OR
+        const conditions = requests.map(({ client_id, month, year }) => 
+            `(client_id = '${client_id}'  AND year = '${year}')`
+        ).join(' OR ');
+        const query = `UPDATE tb_annualreconciliation SET pending_status = 1  WHERE ${conditions}`;
 
         const pool = await sql.connect(config);
         await pool.request().query(query);
@@ -190,13 +194,17 @@ router.post("/MarkAsPending", async (req, res) => {
 });
 router.post("/MarkAsCompleted", async (req, res) => {
     try {
-        const { clientIds } = req.body;
+        const { requests } = req.body; // Expecting an array of { client_id,year }
 
-       
-        const clientIdsString = clientIds.join(',');
+        if (!requests || requests.length === 0) {
+            return res.status(400).json({ message: "No requests provided" });
+        }
 
-        // Update the pending_status of the selected records to 1 (pending)
-        const query = `UPDATE tb_annualreconciliation SET pending_status = 2 WHERE client_id IN (${clientIdsString})`;
+        // Construct WHERE clause with multiple AND conditions combined with OR
+        const conditions = requests.map(({ client_id, month, year }) => 
+            `(client_id = '${client_id}'  AND year = '${year}')`
+        ).join(' OR ');
+        const query = `UPDATE tb_annualreconciliation SET pending_status = 2 WHERE ${conditions}`;
 
         const pool = await sql.connect(config);
         await pool.request().query(query);
