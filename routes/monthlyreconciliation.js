@@ -168,18 +168,49 @@ router.post("/GetPendingList", async (req, res) => {
 
 
 
+// router.post("/UpdateField", async (req, res) => {
+//     try {
+//         const { client_id, month, year, fieldName, updatedValue } = req.body;
+
+//         let query;
+//         switch (fieldName) {
+//             case 'amount':
+//                 query = `UPDATE tb_monthlyreconciliation SET ${fieldName} = @updatedValue WHERE client_id = @client_id AND month = @month AND year = @year`;
+//                 break;
+//             case 'remarks':
+//                 query = `UPDATE tb_monthlyreconciliation SET remarks = @updatedValue WHERE client_id = @client_id AND month = @month AND year = @year`;
+//                 break;
+//             default:
+//                 return res.status(400).json({ message: "Invalid field name" });
+//         }
+
+//         const pool = await sql.connect(config);
+//         const result = await pool.request()
+//             .input('client_id', sql.Int, client_id)
+//             .input('month', sql.VarChar, month)
+//             .input('year', sql.Int, parseInt(year)) // Ensure year is passed as an integer
+//             .input('updatedValue', sql.VarChar, updatedValue.toString())
+//             .query(query);
+
+//         res.status(200).json({ Success: true });
+//     } catch (err) {
+//         console.error("Error:", err);
+//         res.status(500).json({ message: "Error updating field" });
+//     }
+// });
+
 router.post("/UpdateField", async (req, res) => {
     try {
-        const { requestId, fieldName, updatedValue } = req.body;
+        const { requestId, month,year,fieldName, updatedValue } = req.body;
 
         let query;
         switch (fieldName) {
             case 'amount':
             case 'actionedby':
-                query = `UPDATE tb_monthlyreconciliation SET ${fieldName} = @updatedValue WHERE client_id = @requestId`;
+                query = `UPDATE tb_monthlyreconciliation SET ${fieldName} = @updatedValue WHERE client_id = @requestId AND month=@month AND year=@year`;
                 break;
             case 'remarks':
-                query = `UPDATE tb_monthlyreconciliation SET remarks = @updatedValue WHERE client_id = @requestId`;
+                query = `UPDATE tb_monthlyreconciliation SET remarks = @updatedValue WHERE client_id = @requestId AND month=@month AND year=@year`;
                 break;
             default:
                 return res.status(400).json({ message: "Invalid field name" });
@@ -188,6 +219,11 @@ router.post("/UpdateField", async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .input('requestId', sql.Int, requestId)
+            .input('month', sql.VarChar, month)
+            .input('year', sql.Int, year)
+            
+            
+
             .input('updatedValue', sql.VarChar, updatedValue)
             .query(query);
 
@@ -197,6 +233,7 @@ router.post("/UpdateField", async (req, res) => {
         res.status(500).json({ message: "Error updating field" });
     }
 });
+
 router.post("/MarkAsPending", async (req, res) => {
     try {
         const { requests } = req.body; // Expecting an array of { client_id, month, year }

@@ -173,14 +173,15 @@ router.post('/dynamicRoutes', async (req, res) => {
   const { userInfo } = req.body;
   const { user_id } = userInfo;
   const responseData = { isValid: true, responseText: "" };
-  console.log('hii',user_id)
+
   try {
     const pool = await sql.connect(config);
     const userID = user_id;
     const finalScreens = [];
 
+    // Query for level 0 screens the user has access to
     const getLevelZeroQuery = `
-      SELECT  caption, recID 
+      SELECT caption, recID
       FROM ProgramMaster 
       WHERE levelNumber = 0 AND recID IN (
         SELECT ProgramID FROM UserProgramMaster WHERE UserId = @userID
@@ -189,6 +190,7 @@ router.post('/dynamicRoutes', async (req, res) => {
     const levelZeroResults = await pool.request()
       .input('userID', sql.Int, userID)
       .query(getLevelZeroQuery);
+      console.log(levelZeroResults);
 
     for (const element of levelZeroResults.recordset) {
       const curScreen = {
@@ -197,6 +199,7 @@ router.post('/dynamicRoutes', async (req, res) => {
         children: []
       };
 
+      // Query for child screens the user has access to
       const getScreensQuery = `
         SELECT caption, FormName 
         FROM ProgramMaster 
@@ -208,6 +211,7 @@ router.post('/dynamicRoutes', async (req, res) => {
         .input('parentID', sql.Int, element.recID)
         .input('userID', sql.Int, userID)
         .query(getScreensQuery);
+        console.log(queryResult);
 
       queryResult.recordset.forEach(child => {
         curScreen.children.push({
@@ -216,7 +220,10 @@ router.post('/dynamicRoutes', async (req, res) => {
         });
       });
 
-      finalScreens.push(curScreen);
+      // Only add the screen if it has children or is a top-level screen
+      if (curScreen.children.length > 0 || element.levelNumber === 0) {
+        finalScreens.push(curScreen);
+      }
     }
 
     responseData.routes = finalScreens;
@@ -228,6 +235,7 @@ router.post('/dynamicRoutes', async (req, res) => {
     res.status(500).json(responseData);
   }
 });
+
 
 
 module.exports = router;

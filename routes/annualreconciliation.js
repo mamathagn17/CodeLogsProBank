@@ -141,16 +141,16 @@ router.post("/GetPendingList", async (req, res) => {
 
 router.post("/UpdateField", async (req, res) => {
     try {
-        const { requestId, fieldName, updatedValue } = req.body;
+        const { requestId,year,fieldName, updatedValue } = req.body;
 
         let query;
         switch (fieldName) {
             case 'amount':
-            case 'actionedby':
-                query = `UPDATE tb_annualreconciliation SET ${fieldName} = @updatedValue WHERE client_id = @requestId`;
+          
+                query = `UPDATE tb_annualreconciliation SET ${fieldName} = @updatedValue WHERE client_id = @requestId  AND year=@year`;
                 break;
             case 'remarks':
-                query = `UPDATE tb_annualreconciliation SET remarks = @updatedValue WHERE client_id = @requestId`;
+                query = `UPDATE tb_annualreconciliation SET remarks = @updatedValue WHERE client_id = @requestId AND year=@year`;
                 break;
             default:
                 return res.status(400).json({ message: "Invalid field name" });
@@ -159,6 +159,7 @@ router.post("/UpdateField", async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .input('requestId', sql.Int, requestId)
+            .input('year', sql.Int, year)
             .input('updatedValue', sql.VarChar, updatedValue)
             .query(query);
 
