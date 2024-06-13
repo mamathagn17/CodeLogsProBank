@@ -330,20 +330,12 @@ router.post('/LogMonthlyAction', async (req, res) => {
   });
 
 
-
-  
-
-
 router.post("/monthlyreconciliationlogs", async (req, res) => {
     try {
-      var pool = await sql.connect(config); // Connect to the database
+      var pool = await sql.connect(config);
       console.log(req.body);
       console.log("Connected to SQL Server");
-  
-      
       var { currentPage, perPage } = req.body;
-  
-     
       const totalCountQuery =`SELECT COUNT(*) AS TotalCount FROM tb_monthlyreconciliationlogs`;
       console.log("Total Count Query:", totalCountQuery);
       const resultTotalCount = await pool.request().query(totalCountQuery);
@@ -352,15 +344,12 @@ router.post("/monthlyreconciliationlogs", async (req, res) => {
   
       const query = `SELECT *
       FROM (
-          SELECT *, ROW_NUMBER() OVER (ORDER BY date_time) AS RowNum
+          SELECT *, ROW_NUMBER() OVER (ORDER BY date_time DESC) AS RowNum
           FROM tb_monthlyreconciliationlogs
       ) AS UserWithRowNum
       WHERE RowNum BETWEEN ${(currentPage - 1) * perPage + 1} AND ${currentPage * perPage}
-      ORDER BY user_id;
+      ORDER BY date_time DESC;
       `;
-  
-     
-  
       const result = await pool.request().query(query);
       const resultSet = result.recordset;
       console.log("Result Set:", resultSet);
@@ -382,6 +371,59 @@ router.post("/monthlyreconciliationlogs", async (req, res) => {
       res.status(500).json(response);
     }
   });
+
+  const fs = require('fs');
+  router.get('/downloadmonthlyLogs', async (req, res) => {
+    try {
+      const pool = await sql.connect(config);
+      const path = require('path');
+  
+      const result = await pool.request().query('SELECT * FROM tb_monthlyreconciliationlogs');
+      const loginLogs = result.recordset;
+      const csvData = loginLogs.map(log => Object.values(log).join(','));
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      const tempFilePath = path.join(tempDir, 'monthly_logs.csv');
+      fs.writeFileSync(tempFilePath, csvData.join('\n'));
+  
+      res.download(tempFilePath, 'monthly.csv', () => {
+        fs.unlinkSync(tempFilePath);
+      });
+    } catch (error) {
+      console.error('Error fetching monthly logs:', error);
+      res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+      await sql.close();
+    }
+  });
+  router.get('/downloadMonthlyRecon', async (req, res) => {
+    try {
+      const pool = await sql.connect(config);
+      const path = require('path');
+  
+      const result = await pool.request().query('SELECT * FROM tb_monthlyreconciliation');
+      const loginLogs = result.recordset;
+      const csvData = loginLogs.map(log => Object.values(log).join(','));
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      const tempFilePath = path.join(tempDir, 'monthly_logs.csv');
+      fs.writeFileSync(tempFilePath, csvData.join('\n'));
+  
+      res.download(tempFilePath, 'monthlyReconciliation.csv', () => {
+        fs.unlinkSync(tempFilePath);
+      });
+    } catch (error) {
+      console.error('Error fetching monthly Reconciliation logs:', error);
+      res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+      await sql.close();
+    }
+  });
+
   
 
 

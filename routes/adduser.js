@@ -123,11 +123,11 @@ router.post("/adduser", async (req, res) => {
   
       const query = `SELECT *
       FROM (
-          SELECT *, ROW_NUMBER() OVER (ORDER BY user_id) AS RowNum
+          SELECT *, ROW_NUMBER() OVER (ORDER BY date_time DESC) AS RowNum
           FROM tb_useraddlogs
       ) AS UserWithRowNum
       WHERE RowNum BETWEEN ${(currentPage - 1) * perPage + 1} AND ${currentPage * perPage}
-      ORDER BY user_id;
+      ORDER BY date_time DESC;
       `;
   
      
@@ -154,6 +154,32 @@ router.post("/adduser", async (req, res) => {
     }
   });
   
+  const fs = require('fs');
+  router.get('/downloadUserLogs', async (req, res) => {
+    try {
+      const pool = await sql.connect(config);
+      const path = require('path');
+  
+      const result = await pool.request().query('SELECT * FROM tb_useraddlogs');
+      const UserLogs = result.recordset;
+      const csvData = UserLogs.map(log => Object.values(log).join(','));
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      const tempFilePath = path.join(tempDir, 'User_logs.csv');
+      fs.writeFileSync(tempFilePath, csvData.join('\n'));
+  
+      res.download(tempFilePath, 'User.csv', () => {
+        fs.unlinkSync(tempFilePath);
+      });
+    } catch (error) {
+      console.error('Error fetching Holder logs:', error);
+      res.status(200).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+      await sql.close();
+    }
+  });
 
 
 

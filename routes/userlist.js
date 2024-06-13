@@ -224,4 +224,32 @@ router.post("/GetUser", async (req, res) => {
     }
   });
   
+
+
+  const fs = require('fs');
+  router.get('/downloaduserlist', async (req, res) => {
+    try {
+      const pool = await sql.connect(config);
+      const path = require('path');
+  
+      const result = await pool.request().query('SELECT * FROM  tb_users');
+      const loginLogs = result.recordset;
+      const csvData = loginLogs.map(log => Object.values(log).join(','));
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      const tempFilePath = path.join(tempDir, 'userlist_logs.csv');
+      fs.writeFileSync(tempFilePath, csvData.join('\n'));
+  
+      res.download(tempFilePath, 'userlist.csv', () => {
+        fs.unlinkSync(tempFilePath);
+      });
+    } catch (error) {
+      console.error('Error fetching User Details:', error);
+      res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+      await sql.close();
+    }
+  });
   module.exports = router;

@@ -205,11 +205,11 @@ router.post("/resetlogs", async (req, res) => {
 
     const query = `SELECT *
     FROM (
-        SELECT *, ROW_NUMBER() OVER (ORDER BY user_id) AS RowNum
+        SELECT *, ROW_NUMBER() OVER (ORDER BY reset_datetime DESC) AS RowNum
         FROM tb_resetpasswordlogs
     ) AS UserWithRowNum
     WHERE RowNum BETWEEN ${(currentPage - 1) * perPage + 1} AND ${currentPage * perPage}
-    ORDER BY user_id;
+    ORDER BY reset_datetime DESC;
     `;
 
     console.log("Query:", query);
@@ -294,25 +294,17 @@ router.get('/downloadLoginLogs', async (req, res) => {
 
     const result = await pool.request().query('SELECT * FROM tb_loginlogs');
     const loginLogs = result.recordset;
-
-    // Convert the data to CSV format
     const csvData = loginLogs.map(log => Object.values(log).join(','));
-
-    // Define the directory path for temporary files
     const tempDir = path.join(__dirname, '..', 'temp');
-    
-    // Create the directory if it doesn't exist
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir);
     }
-
-    // Write CSV data to a temporary file
     const tempFilePath = path.join(tempDir, 'login_logs.csv');
     fs.writeFileSync(tempFilePath, csvData.join('\n'));
 
-    // Send the file as a response
+   
     res.download(tempFilePath, 'login_logs.csv', () => {
-      // Cleanup: delete the temporary file after download
+     
       fs.unlinkSync(tempFilePath);
     });
   } catch (error) {
@@ -322,6 +314,35 @@ router.get('/downloadLoginLogs', async (req, res) => {
     await sql.close();
   }
 });
+
+router.get('/downloadResetLogs', async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const path = require('path');
+
+    const result = await pool.request().query('SELECT * FROM tb_resetpasswordlogs');
+    const resetLogs = result.recordset;
+    const csvData = resetLogs.map(log => Object.values(log).join(','));
+    const tempDir = path.join(__dirname, '..', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir);
+    }
+    const tempFilePath = path.join(tempDir, 'reset_logs.csv');
+    fs.writeFileSync(tempFilePath, csvData.join('\n'));
+
+   
+    res.download(tempFilePath, 'reset_logs.csv', () => {
+     
+      fs.unlinkSync(tempFilePath);
+    });
+  } catch (error) {
+    console.error('Error fetching reset logs:', error);
+    res.status(200).json({ success: false, message: 'Internal Server Error' });
+  } finally {
+    await sql.close();
+  }
+});
+
 
 
 

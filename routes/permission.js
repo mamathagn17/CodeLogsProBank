@@ -33,7 +33,7 @@ router.post('/fetchusernames', async (req, res) => {
 router.get('/data', async (req, res) => {
     try {
       const pool = await sql.connect(config);
-      const result = await pool.request().query('SELECT * FROM ProgramMaster'); // Replace 'your_table' with the actual table name
+      const result = await pool.request().query('SELECT * FROM License_ProgramMaster'); // Replace 'your_table' with the actual table name
       const formattedData = await formatData(result.recordset); // Format the data into a tree structure
       res.status(200).json(formattedData);
     } catch (error) {
@@ -48,7 +48,7 @@ router.post('/fetchuserpermissions', async (req, res) => {
       const pool = await sql.connect(config);
       const result = await pool.request()
         .input('userId', sql.Int, userId)
-        .query('SELECT ProgramID FROM UserProgramMaster WHERE UserId = @userId');
+        .query('SELECT ProgramID FROM License_UserProgramMaster WHERE UserId = @userId');
       
       const permissions = result.recordset.map(record => record.ProgramID);
       res.status(200).json({ permissions });
@@ -86,7 +86,7 @@ router.post('/revokepermissions', async (req, res) => {
 
       // Construct the SQL query to delete permissions
       const query = `
-          DELETE FROM UserProgramMaster
+          DELETE FROM License_UserProgramMaster
           WHERE UserId = @userId
           AND ProgramID IN (${permissions.join(',')})
       `;
@@ -114,7 +114,7 @@ router.post('/grantpermissions', async (req, res) => {
 
       // Construct the SQL query to grant permissions
       const query = `
-          INSERT INTO UserProgramMaster (UserId, ProgramID)
+          INSERT INTO License_UserProgramMaster (UserId, ProgramID)
           VALUES ${permissions.map(programId => `(${userId}, ${programId})`).join(',')}
       `;
       
@@ -182,9 +182,9 @@ router.post('/dynamicRoutes', async (req, res) => {
     // Query for level 0 screens the user has access to
     const getLevelZeroQuery = `
       SELECT caption, recID
-      FROM ProgramMaster 
+      FROM License_ProgramMaster 
       WHERE levelNumber = 0 AND recID IN (
-        SELECT ProgramID FROM UserProgramMaster WHERE UserId = @userID
+        SELECT ProgramID FROM License_UserProgramMaster WHERE UserId = @userID
       )
     `;
     const levelZeroResults = await pool.request()
@@ -202,9 +202,9 @@ router.post('/dynamicRoutes', async (req, res) => {
       // Query for child screens the user has access to
       const getScreensQuery = `
         SELECT caption, FormName 
-        FROM ProgramMaster 
+        FROM License_ProgramMaster 
         WHERE ParentID = @parentID AND RecID IN (
-          SELECT ProgramID FROM UserProgramMaster WHERE UserId = @userID
+          SELECT ProgramID FROM License_UserProgramMaster WHERE UserId = @userID
         )
       `;
       const queryResult = await pool.request()

@@ -283,11 +283,11 @@ router.post("/annualreconciliationlogs", async (req, res) => {
   
       const query = `SELECT *
       FROM (
-          SELECT *, ROW_NUMBER() OVER (ORDER BY date_time) AS RowNum
+          SELECT *, ROW_NUMBER() OVER (ORDER BY date_time DESC) AS RowNum
           FROM tb_annualreconciliationlogs
       ) AS UserWithRowNum
       WHERE RowNum BETWEEN ${(currentPage - 1) * perPage + 1} AND ${currentPage * perPage}
-      ORDER BY user_id;
+      ORDER BY date_time DESC;
       `;
   
      
@@ -314,6 +314,58 @@ router.post("/annualreconciliationlogs", async (req, res) => {
     }
   });
   
+
+  const fs = require('fs');
+  router.get('/downloadannualLogs', async (req, res) => {
+    try {
+      const pool = await sql.connect(config);
+      const path = require('path');
+  
+      const result = await pool.request().query('SELECT * FROM tb_annualreconciliationlogs');
+      const annualLogs = result.recordset;
+      const csvData = annualLogs.map(log => Object.values(log).join(','));
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      const tempFilePath = path.join(tempDir, 'annual_logs.csv');
+      fs.writeFileSync(tempFilePath, csvData.join('\n'));
+  
+      res.download(tempFilePath, 'annual.csv', () => {
+        fs.unlinkSync(tempFilePath);
+      });
+    } catch (error) {
+      console.error('Error fetching Annual logs:', error);
+      res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+      await sql.close();
+    }
+  });
+  router.get('/downloadAnnualReco', async (req, res) => {
+    try {
+      const pool = await sql.connect(config);
+      const path = require('path');
+  
+      const result = await pool.request().query('SELECT * FROM tb_annualreconciliation');
+      const annualLogs = result.recordset;
+      const csvData = annualLogs.map(log => Object.values(log).join(','));
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      const tempFilePath = path.join(tempDir, 'annualreconciliation_logs.csv');
+      fs.writeFileSync(tempFilePath, csvData.join('\n'));
+  
+      res.download(tempFilePath, 'annualrecon.csv', () => {
+        fs.unlinkSync(tempFilePath);
+      });
+    } catch (error) {
+      console.error('Error fetching Annual Reconciliation:', error);
+      res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+      await sql.close();
+    }
+  });
 
 
 module.exports = router;
